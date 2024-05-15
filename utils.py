@@ -34,6 +34,9 @@ def visualize(
   Returns:
     Image with bounding boxes.
   """
+  cord =[0,0]
+  count = 0
+  
   for detection in detection_result.detections:
     # Draw bounding_box
     bbox = detection.bounding_box
@@ -42,15 +45,22 @@ def visualize(
     # Use the orange color for high visibility.
     cv2.rectangle(image, start_point, end_point, (0, 165, 255), 3)
     cv2.circle(image, (bbox.origin_x + int(bbox.width/2), bbox.origin_y + int(bbox.height/2)),4,(0, 255, 0), -1)
+    cord[0]+= bbox.origin_x + int(bbox.width/2)
+    cord[1]+= bbox.origin_y + int(bbox.height/2)
+    count+=1
+    # ~ print((bbox.origin_x + int(bbox.width/2), bbox.origin_y + int(bbox.height/2)))
     # Draw label and score
     category = detection.categories[0]
     category_name = (category.category_name if category.category_name is not
                      None else '')
-    probability = round(category.score, 2)
-    result_text = category_name + ' (' + str(probability) + ')'
-    text_location = (MARGIN + bbox.origin_x,
-                     MARGIN + ROW_SIZE + bbox.origin_y)
-    cv2.putText(image, result_text, text_location, cv2.FONT_HERSHEY_DUPLEX,
-                FONT_SIZE, TEXT_COLOR, FONT_THICKNESS, cv2.LINE_AA)
-
-  return image
+    # ~ probability = round(category.score, 2)
+    # ~ result_text = category_name + ' (' + str(probability) + ')'
+    # ~ text_location = (MARGIN + bbox.origin_x,
+                     # ~ MARGIN + ROW_SIZE + bbox.origin_y)
+    # ~ cv2.putText(image, result_text, text_location, cv2.FONT_HERSHEY_DUPLEX,
+                # ~ FONT_SIZE, TEXT_COLOR, FONT_THICKNESS, cv2.LINE_AA)
+  if count:
+      cord[0]//= count
+      cord[1]//= count
+      cv2.circle(image, tuple(cord),4,(255, 0, 0), -1)
+  return image,cord
