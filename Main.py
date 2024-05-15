@@ -139,9 +139,6 @@ def run(model: str, min_detection_confidence: float,
             D = Kd*ydir*(yError-yErrorPrev)
             yErrorPrev = yError
             
-            
-            #adustment
-            
             pidOutput = P + I + D ### PID equation 
             test.data  = pidOutput
             
@@ -165,7 +162,6 @@ def run(model: str, min_detection_confidence: float,
 
     cv2.imshow('face_detection', current_frame)
 
-    # Stop the program if the ESC key is pressed.
     if cv2.waitKey(1) & 0XFF == ord(" "):
       break
 
