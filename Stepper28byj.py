@@ -42,7 +42,7 @@ class Stepper28BYJ:
 			GPIO.output(pin,0)
 	
 	def cwStepping(self,steps):
-		for i in range(int(steps)):
+		for i in range(steps):
 			for step in range(4 if self.stepMode == 0 or self.stepMode == 1 else 8):
 				for pin in range(4):
 					GPIO.output(self.controlPins[pin],self.__singlePhaseStepping[step][pin] if self.stepMode == 0 else self.__dualPhaseStepping[step][pin] if self.stepMode == 1 else self.__halfStepping[step][pin])

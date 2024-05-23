@@ -1,4 +1,3 @@
-import argparse
 import sys
 import time
 
@@ -17,15 +16,8 @@ from gpiozero.pins.pigpio import PiGPIOFactory
 
 from Stepper28byj import Stepper28BYJ 
 from servoControl import Servo
-from test import DynamicPlotWindow
-import test 
-import threading
 
-import sys
-import pyqtgraph as pg
-from PyQt5.QtWidgets import QApplication, QMainWindow
-from PyQt5.QtCore import QTimer
-
+from opencv_multiplot import Plotter
 
 
 # Global variables to calculate FPS
@@ -35,22 +27,24 @@ DETECTION_RESULT = None
 
 
 #PID variables
-prevError ,errorSum ,timeDiff , offset , yErrorPrev= 0, 0, 0.1 ,0,0 # offset is optional value for pid output when being zero value
-data = 0
+yErrorSum, yErrorPrev= 0,0
+xErrorSum, xErrorPrev= 0,0
+cord = 0,0
 
+    
 def run(model: str, min_detection_confidence: float,
-        min_suppression_threshold: float, camera_id: int, width: int,
-        height: int) -> None:
+        min_suppression_threshold: float) -> None:
 
-  global yErrorPrev, errorSum
+  global yErrorPrev, yErrorSum, xErrorPrev, xErrorSum, cord
+  
+  
   # Start capturing video input from the camera
   picam2 = Picamera2()
   camera_config = picam2.create_preview_configuration({"size": (320, 240)}, raw = picam2.sensor_modes[0])
   picam2.configure(camera_config)
-  # ~ picam2.start_preview(Preview.QTGL)
   picam2.start()
   
-
+  
   controlPins = [31,33,35,37]
   lServoPin = 12
 
@@ -61,6 +55,7 @@ def run(model: str, min_detection_confidence: float,
   stepper.setPinMode(GPIO.BOARD)
   stepper.setSteppingMode(2)
   stepper.init()
+  stepperPrev = 0
   servoDegree = 0
   servo.angle = servoDegree
   time.sleep(2)
@@ -95,8 +90,8 @@ def run(model: str, min_detection_confidence: float,
                                        result_callback=save_result)
   detector = vision.FaceDetector.create_from_options(options)
 
- 
-  # Continuously capture images from the camera and run inference
+  plot = Plotter(700, 250, 4)
+
   while True:
     image = picam2.capture_array()
     image = cv2.flip(image,1)
@@ -110,7 +105,7 @@ def run(model: str, min_detection_confidence: float,
     detector.detect_async(mp_image, time.time_ns() // 1_000_000)
 
     # Show the FPS
-    fps_text = 'FPS = {:.1f}'.format(FPS)
+    fps_text = 'FPS={:.1f}'.format(FPS)
     text_location = (left_margin, row_size)
     current_frame = image
     cv2.putText(current_frame, fps_text, text_location, cv2.FONT_HERSHEY_DUPLEX,
@@ -121,29 +116,52 @@ def run(model: str, min_detection_confidence: float,
         current_frame , cord = visualize(current_frame, DETECTION_RESULT)
         
         yError, ydir = error(current_frame.shape[0],cord[1])
-        if yError!=None:
-            
-            Kp = 5
-            Ki = 0.000001
-            Kd = 10
+        xError, xdir = error(current_frame.shape[1],cord[0])
+        if yError != None or xError != None:
+          
+          
+            ### Y Term
+            yKp = 7.5
+            yKi = 0.000001
+            yKd = 9
+       
+       
             # Proportional
-            P = Kp*ydir*yError
-            
+            yP = yKp*ydir*yError
             
             #Integral
-            errorSum += yError
-            I = Ki*ydir*errorSum
+            yErrorSum += yError
+            yI = yKi*ydir*yErrorSum
           
-            
             #Derivative
-            D = Kd*ydir*(yError-yErrorPrev)
-            yErrorPrev = yError
+            yD = yKd*ydir*(yError-yErrorPrev)
+            yErrorPrev = yError 
             
-            pidOutput = P + I + D ### PID equation 
-            test.data  = pidOutput
+            yPidOutput = yP + yI + yD ### PID equation 
+            yPidOutput = round(yPidOutput)
+            
+            ### X Term
+            xKp = 10
+            xKi = 0.003
+            xKd = 8
+            
+            # Proportional
+            xP = xKp*xError
+            
+            #Integral
+            xErrorSum += xError
+            xI = xKi*xErrorSum
+          
+            #Derivative
+            xD = xKd*(xError-xErrorPrev)
+            xErrorPrev = xError 
+            
+            xPidOutput = xP + xI + xD ### PID equation 
+            xPidOutput = round(xPidOutput)
+            xPidOutput = abs(xPidOutput)
             
             #servo
-            servoDegree = servoDegree + pidOutput
+            servoDegree = servoDegree + yPidOutput
             
             # Reset line of sight if instructed to look out of bounds            
             if (servoDegree>90 or servoDegree<-90):
@@ -152,14 +170,26 @@ def run(model: str, min_detection_confidence: float,
 
             servo.angle = servoDegree
             
+            if xdir == 1:
+              stepper.cwStepping(xPidOutput)
+              
+            elif xdir == -1:
+              stepper.ccwStepping(xPidOutput)
+              
+              
             time.sleep(0.00001)
 
-
+        
         yError = 0
         ydir = 0
+        xError = 0
+        xdir = 0
+        
       else:
         servo.angle = servoDegree
-
+        
+    ### Plotting and Show Frame .....
+    plot.multiplot([cord[1],current_frame.shape[0]//2,cord[0],current_frame.shape[1]//2]) 
     cv2.imshow('face_detection', current_frame)
 
     if cv2.waitKey(1) & 0XFF == ord(" "):
@@ -167,27 +197,6 @@ def run(model: str, min_detection_confidence: float,
 
   detector.close()
   cv2.destroyAllWindows()
-
-
-
-
-def PID(value,setPoint,kP,kI,kD):
-  global integral,prevError,timeDiff,offset
-  error = setPoint - value
-  P = kP * error
-  integral = integral + kI*error*(timeDiff)
-  D = kD*(error - prevError)/(timeDiff)
-  
-  pidOutput = P +  integral + D + offset
-  
-  prevError = error
-  return pidOutput  
-
-
-
-def Map(value, fromLow, fromHigh, toLow, toHigh):
-  return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow
-
 
 
 def error(windowMax, x):
@@ -201,55 +210,5 @@ def error(windowMax, x):
         
     return adjustment_magnitude, adjustment_direction
 
-
-
-
-def main():
-  parser = argparse.ArgumentParser(
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  parser.add_argument(
-      '--model',
-      help='Path of the face detection model.',
-      required=False,
-      default='detector.tflite')
-  parser.add_argument(
-      '--minDetectionConfidence',
-      help='The minimum confidence score for the face detection to be '
-           'considered successful..',
-      required=False,
-      type=float,
-      default=0.6)
-  parser.add_argument(
-      '--minSuppressionThreshold',
-      help='The minimum non-maximum-suppression threshold for face detection '
-           'to be considered overlapped.',
-      required=False,
-      type=float,
-      default=0.6)
-  # Finding the camera ID can be very reliant on platform-dependent methods. 
-  # One common approach is to use the fact that camera IDs are usually indexed sequentially by the OS, starting from 0. 
-  # Here, we use OpenCV and create a VideoCapture object for each potential ID with 'cap = cv2.VideoCapture(i)'.
-  # If 'cap' is None or not 'cap.isOpened()', it indicates the camera ID is not available.
-  parser.add_argument(
-      '--cameraId', help='Id of camera.', required=False, type=int, default=0)
-  parser.add_argument(
-      '--frameWidth',
-      help='Width of frame to capture from camera.',
-      required=False,
-      type=int,
-      default=320)
-  parser.add_argument(
-      '--frameHeight',
-      help='Height of frame to capture from camera.',
-      required=False,
-      type=int,
-      default=240)
-  args = parser.parse_args()
-
-  run(args.model, args.minDetectionConfidence, args.minSuppressionThreshold,
-      int(args.cameraId), args.frameWidth, args.frameHeight)
-
-
-
 if __name__ == '__main__':
-  main()
+  run("detector.tflite", 0.6, 0.6)
