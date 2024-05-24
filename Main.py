@@ -15,7 +15,6 @@ from gpiozero import AngularServo
 from gpiozero.pins.pigpio import PiGPIOFactory
 
 from Stepper28byj import Stepper28BYJ 
-from servoControl import Servo
 
 from opencv_multiplot import Plotter
 
@@ -91,7 +90,7 @@ def run(model: str, min_detection_confidence: float,
   detector = vision.FaceDetector.create_from_options(options)
 
   plot = Plotter(700, 250, 4)
-
+  plot.setValName(["Y value", "Y setsoint", "X value", "X setpoint"])
   while True:
     image = picam2.capture_array()
     image = cv2.flip(image,1)
@@ -121,9 +120,9 @@ def run(model: str, min_detection_confidence: float,
           
           
             ### Y Term
-            yKp = 7.5
-            yKi = 0.000001
-            yKd = 9
+            yKp = 10
+            yKi = 0.003
+            yKd = 14
        
        
             # Proportional
@@ -189,7 +188,7 @@ def run(model: str, min_detection_confidence: float,
         servo.angle = servoDegree
         
     ### Plotting and Show Frame .....
-    plot.multiplot([cord[1],current_frame.shape[0]//2,cord[0],current_frame.shape[1]//2]) 
+    plot.multiplot([cord[1],current_frame.shape[0]//2,cord[0],current_frame.shape[1]//2],"PID Plot") 
     cv2.imshow('face_detection', current_frame)
 
     if cv2.waitKey(1) & 0XFF == ord(" "):
