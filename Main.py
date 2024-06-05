@@ -54,7 +54,7 @@ def run(model: str, min_detection_confidence: float,
   stepper.setPinMode(GPIO.BOARD)
   stepper.setSteppingMode(2)
   stepper.init()
-  stepperPrev = 0
+  
   servoDegree = 0
   servo.angle = servoDegree
   time.sleep(2)
@@ -137,6 +137,7 @@ def run(model: str, min_detection_confidence: float,
             yErrorPrev = yError 
             
             yPidOutput = yP + yI + yD ### PID equation 
+            
             yPidOutput = round(yPidOutput)
             
             ### X Term
