@@ -1,0 +1,6 @@
+gpiozero==1.6.2
+mediapipe==0.10.5
+numpy==1.26.4
+opencv-contrib-python==4.9.0.80
+picamera2==0.3.12
+RPi.GPIO==0.7.0
