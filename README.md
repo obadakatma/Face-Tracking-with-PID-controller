@@ -61,6 +61,10 @@ This method makes it easier to tune the PID parameters in real-time and visualiz
 
 At first make all of Kp,Ki,Kd zero then start tuning the Proportional term which will make an overshoot in the system, then tuning Derivative term which will reduce the over shoot of the system to make it much more reasonable, finaly the system will have a steady state error and by tuning the Integral term it will be so close to zero.</br>
 
+## Resources
+[PID Control Theory](https://www.robotsforroboticists.com/pid-control/)</br>
+[Tmplementing PID Control in python](https://softinery.com/blog/implementation-of-pid-controller-in-python/)
+
 ## Project Team
 [Obada Katma](https://github.com/obadakatma)</br>
 [Omar Jbair](https://github.com/omarjbair)</br>
