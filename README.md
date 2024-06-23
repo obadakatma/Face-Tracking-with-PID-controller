@@ -32,7 +32,7 @@ opencv for computer vision and image processing.</br>
 mediapipe for face detection.</br>
 picamera2 to make an instance to capture the video from the camera.</br>
 
-### Hwo the code works
+### How the code works
 In General..</br>
 The mediapipe Face Detection Model detects the faces and returns its center coordinates, then the calculating the error between the center of the face and our desired setpoint which was the center of camera frame ,**That means there will be two errors one on the X axis and one on the Y axis**, after obtaining the error starts the PID Controller algorithm which takes the error and calculate the Proportional and Integral and Derivative terms, Finaly calculating the PID output by summing the PID Controller terms.</br>
 Of course there is two PID Controllers because there is 2DOF in the system.</br>
